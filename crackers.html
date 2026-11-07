@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Cracker Burst</title>
+<link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Hind:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--night:#1b0a2e;--marigold:#ffb627;--magenta:#e0357e;--text:#fbeed8;--muted:#c9a9d6}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--night);color:var(--text);font:400 1rem Hind,system-ui,sans-serif;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;background:radial-gradient(ellipse at 50% 100%,#3a1250,var(--night) 70%)}
+.hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:.8rem 1rem;font:400 1.3rem "Yatra One",serif;color:var(--marigold);pointer-events:none}
+.hud small{display:block;font:600 .8rem Hind,sans-serif;color:var(--muted)}
+#ov{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;background:rgba(27,10,46,.88);text-align:center;padding:1.5rem}
+#ov.off{display:none}
+h1{font:400 clamp(2.2rem,9vw,3.6rem)/1.05 "Yatra One",serif;color:var(--marigold);margin:0}
+p{margin:0;max-width:34ch;color:var(--muted)}
+.big{font:400 3rem "Yatra One",serif;color:var(--text)}
+button{background:var(--marigold);color:var(--night);border:0;border-radius:.8rem;padding:.8rem 1.6rem;font:600 1.1rem Hind,sans-serif;cursor:pointer;margin-top:.6rem}
+button:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+a{color:var(--muted);margin-top:.4rem}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="hud"><div><small>Score</small><span id="sc">0</span></div><div><small>Combo</small><span id="cb">x1</span></div><div><small>Misses</small><span id="ms">0/2</span></div><div><small>Time</small><span id="tm">30</span></div></div>
+<div id="ov">
+  <h1 id="t">Cracker Burst</h1>
+  <div class="big" id="res" hidden></div>
+  <p id="d">Tap the crackers to burst them before they fall. Keep hitting without a miss to build your combo. Miss 2 taps and the game ends. Don't tap the diyas.</p>
+  <p>🧨 2 &nbsp; 🎇 3 &nbsp; 🚀 5 &nbsp; 🪔 −5</p>
+  <button id="go">Play</button>
+  <a href="index.html">Back to diyas</a>
+</div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+let W,H,dpr;
+function resize(){dpr=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)}
+addEventListener('resize',resize);resize();
+
+const TYPES=[
+ {e:'🧨',pts:2,size:46,vy:[-640,-820],w:5,col:['#ff7a1a','#ffb627']},
+ {e:'🎇',pts:3,size:52,vy:[-560,-740],w:3,col:['#ffb627','#fbeed8']},
+ {e:'🚀',pts:5,size:44,vy:[-820,-980],w:2,col:['#e0357e','#ffb627','#7be0ff']},
+ {e:'🪔',pts:-5,size:44,vy:[-620,-780],w:2,col:['#b5471b']}
+];
+const G=720;
+let items=[],parts=[],pops=[],score=0,streak=0,misses=0,time=30,run=false,spawn=0,last=0,best=0;
+try{best=+localStorage.getItem('crackerBest')||0}catch(e){}
+
+function pick(){let t=TYPES.reduce((a,b)=>a+b.w,0),r=Math.random()*t;for(const x of TYPES){if((r-=x.w)<0)return x}return TYPES[0]}
+function add(){
+  const t=pick(),x=W*(.12+Math.random()*.76);
+  const vy=t.vy[0]+Math.random()*(t.vy[1]-t.vy[0]);
+  const scale=Math.min(1,H/800)*.4+.6;
+  items.push({t,x,y:H+30,vx:(W/2-x)*(.25+Math.random()*.35)*(.6),vy:vy*Math.min(1,H/800)*.85-60,s:t.size*scale,a:0});
+}
+function burst(x,y,cols,n){
+  for(let i=0;i<n;i++){const a=Math.random()*6.283,s=80+Math.random()*320;
+    parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:.7+Math.random()*.6,age:0,c:cols[i%cols.length]})}
+}
+function level(){return 1+Math.floor(streak/3)>5?5:1+Math.floor(streak/3)}
+function hud(){$('sc').textContent=score;$('cb').textContent='x'+level();$('tm').textContent=Math.ceil(time);$('ms').textContent=misses+'/2'}
+
+function tap(px,py){
+  if(!run)return;
+  let hit=null,bd=1e9;
+  for(const it of items){const d=Math.hypot(it.x-px,it.y-py);if(d<it.s*.95+10&&d<bd){bd=d;hit=it}}
+  if(!hit){streak=0;misses++;pops.push({x:px,y:py,t:'Miss',age:0,c:'#ff6b6b'});hud();if(misses>=2)end();return}
+  items.splice(items.indexOf(hit),1);
+  if(hit.t.pts<0){score=Math.max(0,score+hit.t.pts);streak=0;burst(hit.x,hit.y,['#b5471b','#555'],14);pops.push({x:hit.x,y:hit.y,t:hit.t.pts+'',age:0,c:'#ff6b6b'})}
+  else{const g=hit.t.pts*level();score+=g;streak++;burst(hit.x,hit.y,hit.t.col,34);pops.push({x:hit.x,y:hit.y,t:'+'+g,age:0,c:'#ffb627'})}
+  hud();
+}
+cv.addEventListener('pointerdown',e=>{e.preventDefault();tap(e.clientX,e.clientY)});
+
+function loop(ts){
+  const dt=Math.min((ts-last)/1000||0,.05);last=ts;
+  ctx.clearRect(0,0,W,H);
+  if(run){
+    time-=dt;spawn-=dt;
+    if(spawn<=0){add();spawn=Math.max(.28,.7-(30-time)*.012)*(.7+Math.random()*.6)}
+    if(time<=0){time=0;end()}
+    hud();
+  }
+  for(let i=items.length-1;i>=0;i--){const it=items[i];
+    it.vy+=G*dt;it.x+=it.vx*dt;it.y+=it.vy*dt;it.a+=dt*2;
+    if(it.y>H+60&&it.vy>0)items.splice(i,1)}
+  for(const it of items){
+    ctx.save();ctx.translate(it.x,it.y);ctx.rotate(Math.sin(it.a*2)*.25);
+    ctx.font=it.s+'px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(it.t.e,0,0);ctx.restore()}
+  for(let i=parts.length-1;i>=0;i--){const p=parts[i];
+    p.age+=dt;if(p.age>p.life){parts.splice(i,1);continue}
+    p.vy+=300*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;
+    ctx.globalAlpha=1-p.age/p.life;ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,3,0,6.283);ctx.fill()}
+  ctx.globalAlpha=1;
+  for(let i=pops.length-1;i>=0;i--){const p=pops[i];
+    p.age+=dt;if(p.age>.8){pops.splice(i,1);continue}
+    ctx.globalAlpha=1-p.age/.8;ctx.fillStyle=p.c;ctx.font='28px "Yatra One",serif';ctx.textAlign='center';ctx.fillText(p.t,p.x,p.y-p.age*60)}
+  ctx.globalAlpha=1;
+  requestAnimationFrame(loop);
+}
+
+function start(){
+  items=[];parts=[];pops=[];score=0;streak=0;misses=0;time=30;spawn=.3;run=true;hud();
+  $('ov').classList.add('off');
+}
+function end(){
+  run=false;
+  const nb=score>best;
+  if(nb){best=score;try{localStorage.setItem('crackerBest',best)}catch(e){}}
+  $('t').textContent=nb&&score>0?'New best':(misses>=2?'Two misses':'Time up');
+  $('res').hidden=false;$('res').textContent=score;
+  $('d').textContent='Best: '+best+'. Beat it with a longer streak.';
+  $('go').textContent='Play again';
+  $('ov').classList.remove('off');
+}
+$('go').addEventListener('click',start);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

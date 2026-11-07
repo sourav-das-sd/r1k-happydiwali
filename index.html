@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diwali Diyas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Yatra+One&family=Hind:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--night:#1b0a2e;--plum:#3a1250;--marigold:#ffb627;--flame:#ff7a1a;--magenta:#e0357e;--text:#fbeed8;--muted:#c9a9d6}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% 100%,var(--plum),var(--night) 70%);color:var(--text);font:400 1.05rem/1.6 Hind,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;padding:2.5rem 1.25rem 3rem}
+h1{font:400 clamp(2.4rem,9vw,4.2rem)/1.05 "Yatra One",Georgia,serif;margin:0 0 .5rem;text-align:center;color:var(--marigold)}
+p.sub{margin:0 0 2rem;color:var(--muted);text-align:center;max-width:32ch}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem 1rem;width:min(100%,420px)}
+.diya{background:none;border:0;padding:0;cursor:pointer;color:inherit;border-radius:1rem;position:relative}
+.diya:focus-visible{outline:3px solid var(--marigold);outline-offset:4px}
+.diya svg{width:100%;height:auto;display:block}
+.bowl{fill:#b5471b}.rim{fill:#e07a2f}.oil{fill:#3a1a0c}
+.flame{fill:var(--marigold);opacity:0;transform-origin:50px 52px;transform:scale(.2)}
+.glow{fill:url(#g);opacity:0;transition:opacity .5s}
+.diya.lit .flame{opacity:1;transform:scale(1);animation:flick 1.6s ease-in-out infinite;transition:opacity .3s,transform .4s}
+.diya.lit .glow{opacity:1}
+@keyframes flick{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(1.08,.94) rotate(2deg)}}
+.count{margin:1.5rem 0 .25rem;font:400 1.4rem "Yatra One",serif;color:var(--marigold)}
+.hint{margin:0;color:var(--muted);min-height:1.6em;text-align:center}
+.card{margin-top:2.25rem;width:min(100%,420px);border:2px solid var(--magenta);border-radius:1.25rem;padding:1.25rem;background:rgba(224,53,126,.08)}
+label{display:block;font-weight:600;margin-bottom:.4rem}
+input{width:100%;padding:.7rem .9rem;border-radius:.7rem;border:2px solid var(--muted);background:var(--night);color:var(--text);font:inherit}
+input:focus-visible{outline:3px solid var(--marigold);outline-offset:2px}
+.wish{font:400 1.5rem/1.3 "Yatra One",serif;margin:1rem 0;color:var(--text);overflow-wrap:anywhere}
+button.share{background:var(--marigold);color:var(--night);border:0;border-radius:.7rem;padding:.7rem 1.2rem;font:600 1rem Hind,sans-serif;cursor:pointer}
+button.share:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+.spark{position:fixed;width:6px;height:6px;border-radius:50%;pointer-events:none;animation:fly 1.4s ease-out forwards}
+@keyframes fly{to{transform:translate(var(--x),var(--y));opacity:0}}
+@media (prefers-reduced-motion:reduce){.diya.lit .flame{animation:none}.spark{display:none}}
+</style>
+</head>
+<body>
+<h1>Happy Diwali</h1>
+<p class="sub">Tap each diya to light it. Light all nine to fill the night.</p>
+
+<svg width="0" height="0" aria-hidden="true"><defs>
+<radialGradient id="g"><stop offset="0" stop-color="#ffb627" stop-opacity=".55"/><stop offset="1" stop-color="#ffb627" stop-opacity="0"/></radialGradient>
+</defs></svg>
+
+<p class="sub"><a href="crackers.html" style="color:var(--marigold)">Play Cracker Burst</a></p>
+<div class="row" id="row"></div>
+<p class="count" id="count">0 of 9 lit</p>
+<p class="hint" id="hint">Start with any diya.</p>
+
+<section class="card">
+  <label for="name">Make a greeting</label>
+  <input id="name" placeholder="Name of someone you love" autocomplete="off">
+  <p class="wish" id="wish">Wishing you light this Diwali.</p>
+  <button class="share" id="share">Share greeting</button>
+</section>
+
+<script>
+const row=document.getElementById('row'),count=document.getElementById('count'),hint=document.getElementById('hint');
+const N=9;
+const msgs=["Start with any diya.","One light is enough to begin.","The dark is already thinner.","Keep going.","Halfway there.","Warmer now.","Almost there.","One left.","The night is full of light."];
+for(let i=0;i<N;i++){
+  const b=document.createElement('button');
+  b.className='diya';b.setAttribute('aria-pressed','false');b.setAttribute('aria-label','Diya '+(i+1));
+  b.innerHTML='<svg viewBox="0 0 100 100"><circle class="glow" cx="50" cy="45" r="48"/><path class="flame" d="M50 14C60 28 62 40 50 52 38 40 40 28 50 14Z"/><ellipse class="oil" cx="50" cy="62" rx="30" ry="6"/><path class="bowl" d="M18 62h64c0 18-14 28-32 28S18 80 18 62Z"/></svg>';
+  b.addEventListener('click',()=>toggle(b));
+  row.appendChild(b);
+}
+function toggle(b){
+  const on=b.classList.toggle('lit');
+  b.setAttribute('aria-pressed',on);
+  const n=row.querySelectorAll('.lit').length;
+  count.textContent=n+' of '+N+' lit';
+  hint.textContent=msgs[n];
+  if(on&&n===N)burst();
+}
+function burst(){
+  const cols=['#ffb627','#ff7a1a','#e0357e','#fbeed8'];
+  for(let i=0;i<60;i++){
+    const s=document.createElement('i');s.className='spark';
+    const a=Math.random()*6.28,d=80+Math.random()*180;
+    s.style.cssText=`left:50%;top:40%;background:${cols[i%4]};--x:${Math.cos(a)*d}px;--y:${Math.sin(a)*d}px`;
+    document.body.appendChild(s);setTimeout(()=>s.remove(),1500);
+  }
+}
+const name=document.getElementById('name'),wish=document.getElementById('wish');
+name.addEventListener('input',()=>{
+  const v=name.value.trim();
+  wish.textContent=v?`Happy Diwali, ${v}. May your year be full of light.`:'Wishing you light this Diwali.';
+});
+document.getElementById('share').addEventListener('click',async()=>{
+  const text=wish.textContent;
+  try{
+    if(navigator.share){await navigator.share({title:'Happy Diwali',text,url:location.href})}
+    else{await navigator.clipboard.writeText(text+' '+location.href);hint.textContent='Greeting copied.'}
+  }catch(e){}
+});
+</script>
+</body>
+</html>
